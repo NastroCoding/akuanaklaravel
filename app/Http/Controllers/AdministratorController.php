@@ -2,8 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\AdminResource;
+use App\Http\Resources\AdminResourceCollection;
 use App\Models\Administrator;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
 class AdministratorController extends Controller
 {
@@ -12,7 +17,11 @@ class AdministratorController extends Controller
      */
     public function index()
     {
-        //
+        $admin = Administrator::all();
+        return response()->json([
+            'totalElements' => $admin->count(),
+            'content' => AdminResource::collection($admin)
+        ]);
     }
 
     /**
@@ -20,7 +29,7 @@ class AdministratorController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        
     }
 
     /**
@@ -28,7 +37,7 @@ class AdministratorController extends Controller
      */
     public function show(Administrator $administrator)
     {
-        //
+        
     }
 
     /**

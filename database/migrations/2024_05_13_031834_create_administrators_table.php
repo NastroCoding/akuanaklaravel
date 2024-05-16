@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('username')->unique();
             $table->string('password');
-            $table->date('last_login_at');
+            $table->date('last_login_at')->unique();
             $table->timestamps();
         });
     }

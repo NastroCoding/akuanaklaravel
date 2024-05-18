@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::post('/v1/auth/signup', [AuthController::class, 'signUp']);
+Route::post('/v1/auth/signUp', [AuthController::class, 'signUp']);
 Route::post('/v1/auth/signin', [AuthController::class, 'signIn']);
 
 Route::middleware('auth:sanctum')->group(function(){
@@ -31,14 +31,14 @@ Route::middleware('auth:sanctum')->group(function(){
     Route::middleware('isAdmin')->group(function(){
         
         Route::controller(AdministratorController::class)->group(function(){
-            Route::get('/v1/admins', 'index');
+            Route::get('/v1/admins', 'getAllAdmins');
         });
         
         Route::controller(UserController::class)->group(function(){
             Route::get('/v1/users', 'index');
-            Route::post('/v1/users', 'store');
-            Route::put('/v1/users/{id}', 'update');
-            Route::delete('/v1/users/{id}', 'destroy');
+            Route::post('/v1/users', 'createUser');
+            Route::put('/v1/users/{id}', 'updateUser');
+            Route::delete('/v1/users/{id}', 'deleteUser');
             Route::get('/v1/users/{username}', 'showUser');
         });
 
@@ -55,6 +55,13 @@ Route::middleware('auth:sanctum')->group(function(){
             Route::delete('/v1/games/{slug}', 'destroy');
         });
 
+    });
+
+    Route::fallback(function (Request $request) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Route not found',
+        ], 404);
     });
 
 });

@@ -10,103 +10,127 @@ use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        $user = User::all();
+    public function index() {
+        $users = User::all();
         return response()->json([
-            'totalElements' => $user->count(),
-            'content' => UserResource::collection($user)
-        ]);
+            'status' => 'success',
+            'data' => UserResource::collection($users)
+        ], 200);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
+    public function createUser(Request $request){
         $validator = Validator::make($request->all(), [
-            'username' => 'required|unique:users,username|unique:administrators,username|min:4|max:60',
-            'password' => 'required|min:5'
+            'username' => 'required|unique:users|min:4|max:60',
+            'password' => 'required|min:5|max:10'
         ]);
 
-        if($validator->fails()){
+        if ($validator->fails()) {
             return response()->json([
-                'message' => $validator->messages()
-            ]);
+                'status' => 'invalid',
+                'message' => $validator->errors()->first()
+            ], 400);
         }
-
-        $hashed = Hash::make($request->password);
 
         $user = User::create([
             'username' => $request->username,
-            'password' => $hashed,
+            'password' => Hash::make($request->password)
         ]);
 
         return response()->json([
             'status' => 'success',
-            'username' => $request->username
-        ]);
+            'username' => $user->username
+        ], 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        $validator = Validator::make($request->all(), [
-            'username' => 'required|min:4|max:60|unique:administrators,username|unique:users,username,' . $id,
-            'password' => 'required|min:5'
-        ]);
-
-        if($validator->fails()){
-           $unique = $validator->failed();
-           if(isset($unique['username']['Unique'])){
-                return response()->json([
-                    'status' => 'invalid',
-                    'message' => 'Username already exists'
-                ]);
-           }
+    public function updateUser(Request $request, $id) {
+        if (!$request->user()->tokenCan('adminToken')) {
+            return response()->json([
+                'status' => 'forbidden',
+                'message' => 'You are not the administrator'
+            ], 403);
         }
-
-        $user = User::where('id', $request->id)->first();
-        $hashed = Hash::make($request->password);
-
-        $user->update([
-            'username' => $request->username,
-            'password' => $hashed
-        ]);
-
-        return response()->json([
-            'status' => 'success',
-            'username' => $request->username
-        ]);
-
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        $user = User::findOrFail($id);
-        if($user == null){
+    
+        $user = User::find($id);
+        if (!$user) {
             return response()->json([
                 'status' => 'not-found',
-                'message' => 'User Not Found'
-            ]);
+                'message' => 'User not found'
+            ], 404);
+        }
+    
+        $rules = [];
+        $messages = [];
+    
+        if ($request->has('username')) {
+            $rules['username'] = 'required|unique:users,username,' . $id . '|min:4|max:60';
+            $messages['username.required'] = 'The username field is required when updating the username.';
+        }
+        if ($request->has('password')) {
+            $rules['password'] = 'required|min:5|max:10';
+            $messages['password.required'] = 'The password field is required when updating the password.';
+        }
+    
+        $validator = Validator::make($request->all(), $rules, $messages);
+    
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'invalid',
+                'message' => $validator->errors()->first()
+            ], 400);
+        }
+    
+        if ($request->has('username')) {
+            $user->username = $request->input('username');
+        }
+        if ($request->has('password')) {
+            $user->password = Hash::make($request->input('password'));
+        }
+    
+        $user->save();
+    
+        return response()->json([
+            'status' => 'success',
+            'message' => 'User updated successfully'
+        ], 200);
+    }
+    
+    public function showUser($username) {
+        $user = User::where('username', $username)->first();
+        if (!$user) {
+            return response()->json([
+                'status' => 'not-found',
+                'message' => 'User not found'
+            ], 404);
+        }
+        return response()->json([
+            'status' => 'success',
+            'data' => new UserResource($user)
+        ], 200);
+    }
+
+    public function deleteUser(Request $request, $id)
+    {
+        if (!$request->user()->tokenCan('adminToken')) {
+            return response()->json([
+                'status' => 'forbidden',
+                'message' => 'You are not administrator'
+            ], 403);
         }
 
-        $user->delete();
+        try {
+            $user = User::findOrFail($id);
+
+            $user->forceDelete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'User deleted'
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'status' => 'not-found',
+                'message' => 'User not found'
+            ], 404);
+        }
     }
 }

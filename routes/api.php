@@ -19,13 +19,19 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::post('/v1/auth/signUp', [AuthController::class, 'signUp']);
+Route::post('/v1/auth/signup', [AuthController::class, 'signUp']);
 Route::post('/v1/auth/signin', [AuthController::class, 'signIn']);
 
 Route::middleware('auth:sanctum')->group(function(){
 
     Route::controller(AuthController::class)->group(function(){
         Route::post('/v1/auth/signout', 'signOut');
+    });
+
+    Route::middleware('isDev')->group(function(){
+
+        // DEVELOPER
+
     });
 
     Route::middleware('isAdmin')->group(function(){

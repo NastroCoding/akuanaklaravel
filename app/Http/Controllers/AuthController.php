@@ -53,8 +53,10 @@ class AuthController extends Controller
             ]);
         }
         
+        $dev = $request->username;
         $user = User::where('username', $request->username)->first();
         $admin = Administrator::where('username', $request->username)->first();
+
         
         if( $admin &&  Hash::check($request->password, $admin->password)){
             $token = $admin->createToken('adminToken')->plainTextToken;
@@ -64,12 +66,26 @@ class AuthController extends Controller
             ]);
         }
         if( $user &&  Hash::check($request->password, $user->password)){
-            $token = $user->createToken('userToken')->plainTextToken;
+            // JIKA BUKAN DEV
+            // if(strpos($dev, 'dev') === false){
+            //     $token = $user->createToken('userToken')->plainTextToken;
+            //     return response()->json([
+            //         'status' => 'success',
+            //         'token1' => 'this is user',
+            //         'token' => $token
+            //     ]);
+            // }
+
+            // JIKA DEV
+            $token = $user->createToken('devToken')->plainTextToken;
             return response()->json([
                 'status' => 'success',
+                'token1' => 'this is dev',
                 'token' => $token
             ]);
+
         }
+
 
         return response()->json([
             'status' => 'invalid',
@@ -84,7 +100,7 @@ class AuthController extends Controller
         return response()->json([
             'status' => 'success'
         ], 200);
-    }
+    } 
 
     public function createUser(Request $request){
         $validator = Validator::make($request->all(), [

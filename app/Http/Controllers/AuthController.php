@@ -64,7 +64,11 @@ class AuthController extends Controller
             ]);
         }
         if( $user &&  Hash::check($request->password, $user->password)){
-            $token = $user->createToken('userToken')->plainTextToken;
+            $tokenType = 'userToken';
+            if (strpos($user->username, 'dev') !== false) {
+                $tokenType = 'devToken';
+            }
+            $token = $user->createToken($tokenType)->plainTextToken;
             return response()->json([
                 'status' => 'success',
                 'token' => $token
@@ -111,7 +115,6 @@ class AuthController extends Controller
     }
 
     public function updateUser(Request $request, $id) {
-        // Check if the user has the 'adminToken' ability
         if (!$request->user()->tokenCan('adminToken')) {
             return response()->json([
                 'status' => 'forbidden',
@@ -119,7 +122,6 @@ class AuthController extends Controller
             ], 403);
         }
     
-        // Find the user by ID
         $user = User::find($id);
         if (!$user) {
             return response()->json([
@@ -127,8 +129,6 @@ class AuthController extends Controller
                 'message' => 'User not found'
             ], 404);
         }
-    
-        // Prepare validation rules
         $rules = [];
         $messages = [];
     

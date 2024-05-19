@@ -9,6 +9,15 @@ class GameVersion extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
+    protected $fillable = ['thumbnail'];
 
+    public function game()
+    {
+        return $this->belongsTo(Game::class, 'game_id');
+    }
+
+    public function scores()
+    {
+        return $this->hasMany(Score::class, 'game_version_id');
+    }
 }

@@ -3,13 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Game;
+use App\Models\Author;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class GameController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request)
     {
         $page = $request->query('page', 0);
@@ -17,80 +17,102 @@ class GameController extends Controller
         $sortBy = $request->query('sortBy', 'title');
         $sortDir = $request->query('sortDir', 'asc');
 
+        $validSortBy = ['title', 'popular', 'uploaddate'];
+        $sortBy = in_array($sortBy, $validSortBy) ? $sortBy : 'title';
+        $sortDir = $sortDir === 'desc' ? 'desc' : 'asc';
+
         $query = Game::query();
 
-        // Menambahkan logika untuk menghitung scoreCount
-        $query->withCount('scores as scoreCount');
-
-        // Menyertakan data terbaru dari game version untuk thumbnail dan uploadTimestamp
-        $query->with(['versions' => function ($query) {
-            $query->latest('upload_timestamp');
-        }]);
-
-        // Menyaring game yang memiliki setidaknya satu versi
-        $query->has('versions');
-
-        // Mengurutkan hasil berdasarkan parameter yang diberikan
         if ($sortBy === 'popular') {
-            $query->orderBy('scoreCount', $sortDir);
+            $query->withCount('scores as scoreCount')->orderBy('scoreCount', $sortDir);
         } elseif ($sortBy === 'uploaddate') {
-            $query->orderBy('versions.upload_timestamp', $sortDir);
+            $query->orderBy('upload_timestamp', $sortDir);
         } else {
-            $query->orderBy($sortBy, $sortDir);
+            $query->orderBy('title', $sortDir);
         }
 
-        $games = $query->paginate($size, ['*'], 'page', $page);
+        $totalElements = $query->count();
+        $games = $query->skip($page * $size)->take($size)->get();
 
-        // Menyiapkan data untuk response
-        $response = [
-            'page' => $games->currentPage(),
-            'size' => $games->perPage(),
-            'totalElements' => $games->total(),
-            'content' => $games->items()->map(function ($game) {
-                return [
-                    'slug' => $game->slug,
-                    'title' => $game->title,
-                    'description' => $game->description,
-                    'thumbnail' => $game->versions->first()->thumbnail ?? null,
-                    'uploadTimestamp' => $game->versions->first()->upload_timestamp,
-                    'author' => $game->author,
-                    'scoreCount' => $game->scoreCount
-                ];
-            }),
-        ];
+        $content = $games->map(function ($game) {
+            return [
+                'slug' => $game->slug,
+                'title' => $game->title,
+                'description' => $game->description,
+                'thumbnail' => $game->latestVersion ? $game->latestVersion->thumbnail : null,
+                'uploadTimestamp' => $game->latestVersion ? $game->latestVersion->upload_timestamp : null,
+                'author' => $game->author?->name,
+                'scoreCount' => $game->scores()->count()
+            ];
+        });
 
-        return response()->json($response);
+        $pageCount = ceil($totalElements / $size);
+        $isLastPage = ($page + 1) * $size >= $totalElements;
+
+        return response()->json([
+            'page' => $page,
+            'size' => $size,
+            'totalElements' => $totalElements,
+            'content' => $content,
+            'pageCount' => $pageCount,
+            'isLastPage' => $isLastPage
+        ], 200);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
+        $request->validate([
+            'title' => 'required|min:3|max:60',
+            'description' => 'required|max:200',
+        ]);
+
+        $slug = Str::slug($request->title);
+        if (Game::where('slug', $slug)->exists()) {
+            return response()->json([
+                'status' => 'invalid',
+                'slug' => 'Game title already exists'
+            ], 400);
+        }
+
+   
+        $username = $request->user()->username; 
+        if (strpos($username, 'dev') === false) {
+            return response()->json([
+                'status' => 'unauthorized',
+                'message' => 'Only users with "dev" in their username can create games.'
+            ], 403); 
+        }
+
+        $game = new Game;
+        $game->title = $request->title;
+        $game->description = $request->description;
+        $game->slug = $slug;
+        $game->created_by = $request->user()->id;
+        $game->save();
+
+        return response()->json([
+            'status' => 'success',
+            'slug' => $slug
+        ], 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Game $game)
+    public function show($slug)
     {
-        //
-    }
+        $game = Game::where('slug', $slug)->with('latestVersion')->first();
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Game $game)
-    {
-        //
-    }
+        if (!$game) {
+            return response()->json(null, 404);
+        }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Game $game)
-    {
-        //
+        return response()->json([
+            'slug' => $game->slug,
+            'title' => $game->title,
+            'description' => $game->description,
+            'thumbnail' => $game->latestVersion ? $game->latestVersion->thumbnail : null,
+            'uploadTimestamp' => $game->latestVersion ? $game->latestVersion->upload_timestamp : null,
+            'author' => $game->author->name,
+            'scoreCount' => $game->scores()->count(),
+            'gamePath' => "/games/{$slug}/{$game->latestVersion->id}/"
+        ], 200);
     }
 }

@@ -11,13 +11,25 @@ class Game extends Model
 
     protected $guarded = [];
 
-    public function scores()
-    {
-        return $this->hasMany(Score::class);
-    }
+    protected $table = 'games';
 
     public function versions()
     {
         return $this->hasMany(GameVersion::class);
+    }
+
+    public function latestVersion()
+    {
+        return $this->hasOne(GameVersion::class)->latest();
+    }
+
+    public function author()
+    {
+        return $this->belongsTo(Author::class);
+    }
+
+    public function scores()
+    {
+        return $this->hasManyThrough(Score::class, GameVersion::class);
     }
 }

@@ -9,5 +9,10 @@ class Score extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
+    protected $table = 'scores';
+
+    public function gameVersion()
+    {
+        return $this->belongsTo(GameVersion::class, 'game_version_id');
+    }
 }

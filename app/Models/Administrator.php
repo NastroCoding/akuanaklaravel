@@ -13,4 +13,16 @@ class Administrator extends Model
 
     protected $guarded = [];
 
+    protected $fillable = [
+        'username', 'password', 'last_login_at', 'created_at', 'updated_at'
+    ];
+
+    protected $dates = [
+        'last_login_at', 'created_at', 'updated_at'
+    ];
+
+    protected $casts = [
+        'last_login_at' => 'datetime'
+    ];
+
 }

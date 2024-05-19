@@ -70,4 +70,6 @@ Route::middleware('auth:sanctum')->group(function(){
         ], 404);
     });
 
+    Route::post('/v1/games', [GameController::class, 'store'])->middleware('devOrAdmin');
+
 });

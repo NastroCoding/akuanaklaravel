@@ -4,16 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Game extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'slug', 'title', 'description', 'thumbnail', 'uploadTimestamp', 'author', 'scoreCount', 'created_by'
+    ];
 
-    public function scores()
+    protected $dates = ['uploadTimestamp'];
+
+    public function getThumbnailUrlAttribute()
     {
-        return $this->hasMany(Score::class);
+        if ($this->thumbnail) {
+            return url($this->thumbnail);
+        }
+        return null;
     }
 
     public function versions()

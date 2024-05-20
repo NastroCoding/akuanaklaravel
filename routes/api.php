@@ -52,14 +52,17 @@ Route::middleware('auth:sanctum')->group(function(){
             Route::get('/v1/games', 'index');
             Route::post('/v1/games', 'store');
             Route::get('/v1/games/{slug}', 'show');
+            Route::post('/v1/games/{slug}/upload', 'uploadVersion');
+            Route::delete('/v1/games/{slug}', 'destroy');
+            Route::put('/v1/games/{slug}', 'update');
         });
 
-        Route::controller(GameVersionController::class)->group(function(){
-            Route::post('/v1/games/{slug}/upload', 'store');
-            Route::get('');
-            Route::put('/v1/games/{slug}', 'update');
-            Route::delete('/v1/games/{slug}', 'destroy');
-        });
+        // Route::controller(GameVersionController::class)->group(function(){
+        //     Route::post('/v1/games/{slug}/upload', 'store');
+        //     Route::get('');
+        //     Route::put('/v1/games/{slug}', 'update');
+            
+        // });
 
     });
 
@@ -73,3 +76,12 @@ Route::middleware('auth:sanctum')->group(function(){
     Route::post('/v1/games', [GameController::class, 'store'])->middleware('devOrAdmin');
 
 });
+
+Route::get('/games/{slug}/{version}', function ($slug, $version) {
+    $path = "games/{$slug}/version{$version}.zip";
+    if (Storage::exists($path)) {
+        return response()->download(storage_path("app/{$path}"));
+    }
+
+    abort(404);
+})->middleware('auth');

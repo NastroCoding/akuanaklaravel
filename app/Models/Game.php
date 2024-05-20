@@ -28,4 +28,14 @@ class Game extends Model
     {
         return $this->hasMany(GameVersion::class);
     }
+
+    public function author()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function scores()
+    {
+        return $this->hasManyThrough(Score::class, GameVersion::class);
+    }
 }

@@ -66,7 +66,7 @@ class UserController extends Controller
             $messages['username.required'] = 'The username field is required when updating the username.';
         }
         if ($request->has('password')) {
-            $rules['password'] = 'required|min:5|max:10';
+            $rules['password'] = 'required|min:5|max:15';
             $messages['password.required'] = 'The password field is required when updating the password.';
         }
     
@@ -120,7 +120,7 @@ class UserController extends Controller
         try {
             $user = User::findOrFail($id);
 
-            $user->forceDelete();
+            $user->Delete();
 
             return response()->json([
                 'status' => 'success',

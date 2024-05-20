@@ -67,7 +67,6 @@ class GameController extends Controller
         return response()->json(['status' => 'success', 'slug' => $slug], 201);
     }
 
-    // Method untuk menghasilkan slug yang unik
     private function generateUniqueSlug($title)
     {
         // Menghasilkan slug dari judul
@@ -90,7 +89,7 @@ class GameController extends Controller
     public function show($slug)
     {
         $game = Game::with(['versions' => function ($query) {
-            $query->latest('created_at');
+            $query->latest('upload_timestamp');
         }])->where('slug', $slug)->first();
 
         if (!$game) {
@@ -102,29 +101,70 @@ class GameController extends Controller
             'slug' => $game->slug,
             'title' => $game->title,
             'description' => $game->description,
-            'thumbnail' => $latestVersion ? "/games/{$game->slug}/{$latestVersion->id}/thumbnail.png" : null,
-            'uploadTimestamp' => $latestVersion ? $latestVersion->created_at->toIso8601String() : null,
-            'author' => $game->created_by,
-            'scoreCount' => $game->versions->sum('scores_count'), // Pastikan Anda memiliki relasi dan penghitungan yang benar
-            'gamePath' => $latestVersion ? "/games/{$game->slug}/{$latestVersion->id}/" : null,
+            'thumbnail' => $latestVersion ? url($latestVersion->thumbnail) : null,
+            'uploadTimestamp' => $latestVersion ? $latestVersion->upload_timestamp->toIso8601String() : null,
+            'author' => $game->author->name,
+            'scoreCount' => $game->scores->count(),
+            'gamePath' => $latestVersion ? url("/games/{$game->slug}/{$latestVersion->id}/") : null,
         ];
 
         return response()->json($response, 200);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Game $game)
+
+    public function update(Request $request, $slug)
     {
-        //
+        $game = Game::where('slug', $slug)->first();
+
+        if (!$game) {
+            return response()->json(['message' => 'Game not found'], 404);
+        }
+
+        // Memeriksa apakah pengguna yang terautentikasi adalah pembuat game
+        if ($game->created_by != auth()->id()) {
+            return response()->json(['status' => 'forbidden', 'message' => 'You are not the game author'], 403);
+        }
+
+        $game->update($request->only(['title', 'description']));
+
+        return response()->json(['status' => 'success'], 200);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Game $game)
+    public function delete($slug)
     {
-        //
+        $game = Game::where('slug', $slug)->first();
+        if (!$game || $game->created_by != auth()->id()) {
+            return response()->json(['status' => 'forbidden', 'message' => 'You are not the game author'], 403);
+        }
+
+        $game->delete();
+        return response(null, 204);
+    }
+
+    public function uploadVersion(Request $request, $slug)
+    {
+        $game = Game::where('slug', $slug)->first();
+        if (!$game || $game->created_by != auth()->id()) {
+            return response("User is not author of the game", 403);
+        }
+
+        if ($request->hasFile('zipfile')) {
+            $versionNumber = $game->versions()->count() + 1;
+            $path = $request->file('zipfile')->storeAs(
+                "games/{$slug}", "version{$versionNumber}.zip"
+            );
+
+            $gameVersion = new GameVersion([
+                'game_id' => $game->id,
+                'version_number' => $versionNumber,
+                'path' => $path
+            ]);
+            $gameVersion->save();
+
+            return response("File uploaded successfully", 201);
+        }
+
+        return response("Upload failed", 400);
     }
 }
+
